@@ -252,7 +252,7 @@ for feed_url in RSS_FEEDS:
         post_data = {
             "title": de_title,
             "content": html_content,
-            "status": "draft",
+            "status": "publish",
             "categories": [kat_id],
             "tags": [tag_id] if tag_id else [],
         }
