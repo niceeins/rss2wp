@@ -143,8 +143,10 @@ def upload_image_to_wp(image_url, wp_title):
         img_data = requests.get(image_url).content
         media_endpoint = f"{WP_URL}/wp-json/wp/v2/media"
         headers = {
-            "Content-Disposition": f'attachment; filename="{wp_title[:30].replace(" ", "_")}.png"'
-        }
+                     "Content-Disposition": f'attachment; filename="{wp_title[:30].replace(" ", "_")}.png"',
+                     "Content-Type": "image/png"
+                    }
+
         response = requests.post(
             media_endpoint,
             headers=headers,
