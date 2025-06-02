@@ -69,14 +69,17 @@ def save_posted_title(title):
 
 def make_prompt(text, original_title):
     return (
-        f"Übersetze den folgenden englischen Titel ins Deutsche und gib ausschließlich diesen deutschen Titel als erste Zeile aus: '{original_title}'. "
+        f"Übersetze den folgenden englischen Titel ins Deutsche, aber lasse Eigennamen, Marken, Produktnamen und Eventtitel (wie 'Snowflake Summit') IMMER im Original stehen. "
+        f"Gib ausschließlich den so übersetzten deutschen Titel als erste Zeile aus: '{original_title}'. "
         f"Darunter schreibe einen ausführlichen, modernen, sachlichen News-Text auf Deutsch (ca. 200–300 Wörter), suchmaschinenoptimiert, für technikaffine Männer zwischen 24 und 40 Jahren. "
         f"Baue ein aussagekräftiges SEO-Schlagwort sinnvoll mehrfach in den Text ein. "
+        f"Absätze bitte durch Leerzeilen trennen. "
         f"Am Ende ANTWORTE NUR mit [Kategorie: <Name>] (eine aus: Gaming, IT, Crafting, New Tech) und darunter [Schlagwort: <Keyword>]. "
         f"KEINE weiteren Erklärungen oder Zusatzinfos! "
-        f"Gib NUR den deutschen Titel, darunter den Fließtext, dann Kategorie und Schlagwort zurück.\n\n"
+        f"Gib NUR den deutschen Titel (ohne Sternchen, Anführungszeichen oder andere Sonderzeichen am Anfang/Ende), darunter den Fließtext, dann Kategorie und Schlagwort zurück.\n\n"
         f"{text}"
     )
+
 
 def get_or_create_tag_id(tag_name):
     if not tag_name:
@@ -102,6 +105,11 @@ def get_or_create_tag_id(tag_name):
     return None
 
 posted_titles = load_posted_titles()
+
+def to_html_paragraphs(text):
+    # Wandelt Absätze (auch einzelne Zeilen) in <p>…</p> um
+    parts = [p.strip() for p in text.split('\n') if p.strip()]
+    return ''.join(f'<p>{p}</p>' for p in parts)
 
 for feed_url in RSS_FEEDS:
     print(f"\n🌐 Lese Feed: {feed_url}")
@@ -139,7 +147,7 @@ for feed_url in RSS_FEEDS:
                 print("⚠️ GPT-Output zu kurz, wird übersprungen.")
                 continue
 
-            de_title = lines[0].strip()
+            de_title = lines[0].strip(" *\"'\n\r\t`")
             rest = "\n".join(lines[1:]).strip()
 
             # Kategorie extrahieren
@@ -154,6 +162,10 @@ for feed_url in RSS_FEEDS:
             rewritten = re.sub(r"\[Kategorie:.*?\]", "", rest)
             rewritten = re.sub(r"\[Schlagwort:.*?\]", "", rewritten).strip()
 
+            # Zu HTML-Absätzen
+            html_content = to_html_paragraphs(rewritten)
+            html_content += f'<p><strong>Quelle:</strong> <a href="{link}" target="_blank" rel="noopener">{title}</a></p>'
+
             print(f"⚡ Kategorie erkannt: {kategorie_name} / Schlagwort: {focus_keyword}")
         except Exception as e:
             print(f"❌ Fehler bei OpenAI: {e}")
@@ -164,7 +176,7 @@ for feed_url in RSS_FEEDS:
 
         post_data = {
             "title": de_title,
-            "content": f"{rewritten}\n\n[Quelle]({link})",
+            "content": html_content,
             "status": "draft",
             "categories": [kat_id],
             "tags": [tag_id] if tag_id else [],
@@ -186,3 +198,4 @@ for feed_url in RSS_FEEDS:
             print(f"❌ Fehler beim Senden an WP: {e}")
 
 print("\n🏁 Fertig!")
+
