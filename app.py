@@ -16,7 +16,7 @@ WP_APP_PASSWORD = os.getenv("WP_APP_PASSWORD")
 
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-# Nutze die IDs aus deinem WordPress-System!
+# Kategorien anpassen!
 KAT_IDS = {
     "Gaming": 2,
     "IT": 3,
@@ -55,7 +55,6 @@ RSS_FEEDS = [
     "https://www.makeuseof.com/feed/"
 ]
 
-
 POSTED_TITLES_FILE = "posted_titles.txt"
 
 def load_posted_titles():
@@ -70,17 +69,14 @@ def save_posted_title(title):
 
 def make_prompt(text, original_title):
     return (
-        f"Du erhältst eine Technik- oder Gaming-News. "
-        f"Übersetze den Titel '{original_title}' INS DEUTSCHE und gib ihn als erste Zeile zurück. "
-        f"Darunter schreibe einen ausführlichen, sachlichen, modernen Fließtext (200–300 Wörter) für technikaffine Leser im Alter von 24–40 Jahren. "
-        f"Der Text soll suchmaschinenoptimiert sein und ein passendes SEO-Schlagwort mehrfach sinnvoll einbauen. "
-        f"Vermeide Emotes, Jugendsprache, Clickbait und unnötige Floskeln. "
-        f"Gib ganz am Ende exakt eine der folgenden Kategorien in der Form [Kategorie: <Name>] an: Gaming, IT, Crafting, New Tech. "
-        f"Und darunter in der Form [Schlagwort: <Keyword>] das gewählte SEO-Fokus-Schlagwort. "
-        f"Gib **keine weiteren Informationen** oder Erklärungen zurück.\n\n"
+        f"Übersetze den folgenden englischen Titel ins Deutsche und gib ausschließlich diesen deutschen Titel als erste Zeile aus: '{original_title}'. "
+        f"Darunter schreibe einen ausführlichen, modernen, sachlichen News-Text auf Deutsch (ca. 200–300 Wörter), suchmaschinenoptimiert, für technikaffine Männer zwischen 24 und 40 Jahren. "
+        f"Baue ein aussagekräftiges SEO-Schlagwort sinnvoll mehrfach in den Text ein. "
+        f"Am Ende ANTWORTE NUR mit [Kategorie: <Name>] (eine aus: Gaming, IT, Crafting, New Tech) und darunter [Schlagwort: <Keyword>]. "
+        f"KEINE weiteren Erklärungen oder Zusatzinfos! "
+        f"Gib NUR den deutschen Titel, darunter den Fließtext, dann Kategorie und Schlagwort zurück.\n\n"
         f"{text}"
     )
-
 
 def get_or_create_tag_id(tag_name):
     if not tag_name:
@@ -132,30 +128,42 @@ for feed_url in RSS_FEEDS:
                     {"role": "user", "content": make_prompt(summary, title)}
                 ],
                 temperature=0.8,
-                max_tokens=500,
+                max_tokens=1200,
             )
             full_reply = response.choices[0].message.content.strip()
             print("✅ OpenAI-Antwort bekommen.")
+
+            # Parsing: 1. Zeile ist deutscher Titel, Rest ist Fließtext, Kategorie, Schlagwort
+            lines = [l for l in full_reply.split("\n") if l.strip() != ""]
+            if len(lines) < 4:
+                print("⚠️ GPT-Output zu kurz, wird übersprungen.")
+                continue
+
+            de_title = lines[0].strip()
+            rest = "\n".join(lines[1:]).strip()
+
             # Kategorie extrahieren
-            kategorie_match = re.search(r"\[Kategorie:\s*(.*?)\]", full_reply)
+            kategorie_match = re.search(r"\[Kategorie:\s*(.*?)\]", rest)
             kategorie_name = kategorie_match.group(1).strip() if kategorie_match else "IT"
+
             # Schlagwort extrahieren
-            keyword_match = re.search(r"\[Schlagwort:\s*(.*?)\]", full_reply)
+            keyword_match = re.search(r"\[Schlagwort:\s*(.*?)\]", rest)
             focus_keyword = keyword_match.group(1).strip() if keyword_match else ""
-            # Text bereinigen
-            rewritten = re.sub(r"\[Kategorie:.*?\]", "", full_reply)
+
+            # Fließtext ohne Kategorie/Schlagwort-Tag
+            rewritten = re.sub(r"\[Kategorie:.*?\]", "", rest)
             rewritten = re.sub(r"\[Schlagwort:.*?\]", "", rewritten).strip()
+
             print(f"⚡ Kategorie erkannt: {kategorie_name} / Schlagwort: {focus_keyword}")
         except Exception as e:
             print(f"❌ Fehler bei OpenAI: {e}")
             continue
 
-        # Kategorie-ID holen, Default ist "IT"
         kat_id = KAT_IDS.get(kategorie_name, KAT_IDS["IT"])
         tag_id = get_or_create_tag_id(focus_keyword)
 
         post_data = {
-            "title": title,
+            "title": de_title,
             "content": f"{rewritten}\n\n[Quelle]({link})",
             "status": "draft",
             "categories": [kat_id],
@@ -169,7 +177,7 @@ for feed_url in RSS_FEEDS:
                 auth=(WP_USER, WP_APP_PASSWORD)
             )
             if wp_response.status_code == 201:
-                print(f"📝 Entwurf erstellt: {title} ({kategorie_name} / {focus_keyword})")
+                print(f"📝 Entwurf erstellt: {de_title} ({kategorie_name} / {focus_keyword})")
                 save_posted_title(title)
                 posted_titles.add(title)
             else:
