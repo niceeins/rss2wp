@@ -102,7 +102,7 @@ def filter_brands_with_openai(de_title, focus_keyword, kategorie_name):
     )
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "Du bist ein professioneller, neutraler Texter."},
                 {"role": "user", "content": filter_prompt}
@@ -208,7 +208,7 @@ for feed_url in RSS_FEEDS:
 
         try:
             response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "Du bist ein moderner, deutschsprachiger Tech-Redakteur."},
                     {"role": "user", "content": make_prompt(summary, title)}
