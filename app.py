@@ -5,7 +5,6 @@ import os
 import re
 from dotenv import load_dotenv
 import html
-import json
 
 print("🚀 Starte News-Bot ...")
 load_dotenv()
@@ -55,7 +54,6 @@ RSS_FEEDS = [
     "https://www.technologyreview.com/feed/",
     "https://www.engadget.com/rss.xml",
     "https://venturebeat.com/feed/",
-    "https://gizmodo.com/rss",
     "https://www.makeuseof.com/feed/"
 ]
 
@@ -75,7 +73,7 @@ def make_prompt(text, original_title):
     return (
         f"Übersetze den folgenden englischen Titel ins Deutsche, aber lasse Eigennamen, Marken, Produktnamen und Eventtitel (wie 'Snowflake Summit') IMMER im Original stehen. "
         f"Gib ausschließlich den so übersetzten deutschen Titel als erste Zeile aus: '{original_title}'. "
-        f"Darunter schreibe einen ausführlichen, modernen, sachlichen News-Text auf Deutsch (ca. 200–300 Wörter), suchmaschinenoptimiert, für technikaffine Männer zwischen 24 und 40 Jahren. "
+        f"Darunter schreibe einen ausführlichen, modernen, sachlichen News-Text auf Deutsch (mindestens 300 Wörter), suchmaschinenoptimiert, für technikaffine Männer zwischen 24 und 40 Jahren. "
         f"Baue ein aussagekräftiges SEO-Schlagwort sinnvoll mehrfach in den Text ein. "
         f"Absätze bitte durch Leerzeilen trennen. "
         f"Am Ende ANTWORTE NUR mit [Kategorie: <Name>] (eine aus: Gaming, IT, Crafting, New Tech) und darunter [Schlagwort: <Keyword>]. "
@@ -93,31 +91,35 @@ def make_image_prompt(de_title, focus_keyword, kategorie_name):
 
 def filter_brands_with_openai(de_title, focus_keyword, kategorie_name):
     filter_prompt = (
-        f"Im folgenden Text können geschützte Marken- oder Produktnamen vorkommen (z. B. Apple, GoPro, WhatsApp, Marvel, Star Wars etc.). "
-        f"Finde alle solche Begriffe und ersetze sie durch eine neutrale, beschreibende Umschreibung (z. B. 'Actionkamera' statt 'GoPro', 'Instant Messenger' statt 'WhatsApp', 'Comicheld' statt 'Spider-Man'). "
-        f"Formuliere den Titel, das Schlagwort und die Kategorie so um, dass keine bekannten Marken, Produkte, Prominente, Filmtitel, Spiele, Comic-Namen oder sonstigen urheberrechtlich geschützten Begriffe mehr vorkommen. "
-        f"Antworte exakt im JSON-Format wie folgt: "
-        f'{{"title": "...", "keyword": "...", "category": "..."}} '
+        f"Im folgenden Titel, Keyword und Kategorie könnten geschützte Marken- oder Produktnamen stehen (z. B. GoPro, WhatsApp, Amazon, Apple, PlayStation). "
+        f"Ersetze alle Marken/Produktnamen durch allgemeine Umschreibungen (z. B. 'Actionkamera' statt 'GoPro', 'Online-Händler' statt 'Amazon', 'Spielkonsole' statt 'PlayStation'). "
+        f"Antwortformat (ohne Zusatzinfos!):\n"
+        f"<TITEL>|||<KEYWORD>|||<KATEGORIE>\n"
         f"Hier sind die Eingabedaten:\n"
-        f'Titel: "{de_title}"\n'
-        f'Schlagwort: "{focus_keyword}"\n'
-        f'Kategorie: "{kategorie_name}"\n'
+        f"TITEL: {de_title}\n"
+        f"KEYWORD: {focus_keyword}\n"
+        f"KATEGORIE: {kategorie_name}"
     )
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Du bist ein professioneller Texter und Rechtsberater."},
+                {"role": "system", "content": "Du bist ein professioneller, neutraler Texter."},
                 {"role": "user", "content": filter_prompt}
             ],
-            temperature=0.1,
-            max_tokens=250,
+            temperature=0.0,
+            max_tokens=120,
         )
-        result = json.loads(response.choices[0].message.content)
-        return result["title"], result["keyword"], result["category"]
+        out = response.choices[0].message.content.strip()
+        # Parsen: Split by '|||'
+        parts = [x.strip(" *\"'\n\r\t`") for x in out.split("|||")]
+        if len(parts) == 3:
+            return parts[0], parts[1], parts[2]
+        else:
+            print("⚠️ Unerwarteter Markenfilter-Output:", out)
+            return de_title, focus_keyword, kategorie_name
     except Exception as e:
         print(f"❌ Fehler beim Marken-Filter (OpenAI): {e}")
-        # Fallback: Gib Originaldaten zurück
         return de_title, focus_keyword, kategorie_name
 
 def generate_openai_image(prompt):
@@ -212,7 +214,7 @@ for feed_url in RSS_FEEDS:
                     {"role": "user", "content": make_prompt(summary, title)}
                 ],
                 temperature=0.8,
-                max_tokens=1200,
+                max_tokens=1500,
             )
             full_reply = response.choices[0].message.content.strip()
             print("✅ OpenAI-Antwort bekommen.")
@@ -237,6 +239,7 @@ for feed_url in RSS_FEEDS:
             # Fließtext ohne Kategorie/Schlagwort-Tag
             rewritten = re.sub(r"\[Kategorie:.*?\]", "", rest)
             rewritten = re.sub(r"\[Schlagwort:.*?\]", "", rewritten).strip()
+            rewritten = rewritten.strip(" *\"'\n\r\t[]")
 
             html_content = to_html_paragraphs(rewritten)
             html_content += f'<p><strong>Quelle:</strong> <a href="{link}" target="_blank" rel="noopener">{title}</a></p>'
