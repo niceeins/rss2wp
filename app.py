@@ -13,8 +13,9 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 WP_URL = os.getenv("WP_URL")
 WP_USER = os.getenv("WP_USER")
 WP_APP_PASSWORD = os.getenv("WP_APP_PASSWORD")
+OPENAI_ORG = os.getenv("OPENAI_ORG")
 
-client = openai.OpenAI(api_key=OPENAI_API_KEY)
+client = openai.OpenAI(api_key=OPENAI_API_KEY, organization=OPENAI_ORG)
 
 KAT_IDS = {
     "Gaming": 2,
