@@ -5,6 +5,8 @@ import os
 import re
 from dotenv import load_dotenv
 import html
+import time
+
 
 print("🚀 Starte News-Bot ...")
 load_dotenv()
@@ -29,32 +31,20 @@ KAT_IDS = {
 
 RSS_FEEDS = [
     # 🎮 Gaming
-    "https://kotaku.com/rss",
-    "https://www.vg247.com/feed",
-    "https://www.gamespot.com/feeds/mashup",
-    "https://www.polygon.com/rss/index.xml",
-    "https://www.rockpapershotgun.com/feed",
-    "https://www.gameinformer.com/rss",
+    "https://www.gamestar.de/rss/news.xml",  # DE: Gamestar – Aktuelle Gaming-News
+    "https://kotaku.com/rss",                # INT: Kotaku – Internationale Gaming-News
 
     # 💻 IT
-    "https://feeds.arstechnica.com/arstechnica/index",
-    "https://techcrunch.com/feed/",
-    "https://www.theverge.com/rss/index.xml",
-    "https://www.wired.com/feed/rss",
-    "https://www.techradar.com/rss",
+    "https://www.heise.de/rss/heise-atom.xml",  # DE: Heise Online – IT-Nachrichten
+    "https://feeds.arstechnica.com/arstechnica/index",  # INT: Ars Technica – Technologie-News
 
     # ✂️ Crafting
-    "https://craftgossip.com/feed/",
-    "https://craftsbyamanda.com/feed",
-    "https://www.thecraftpatchblog.com/feed",
-    "https://modpodgerocksblog.com/feed",
-    "https://www.delphiglass.com/page/main_rss",
+    "https://kreativfieber.de/feed",        # DE: Kreativfieber – DIY-Ideen
+    "https://craftgossip.com/feed/",        # INT: CraftGossip – Bastelideen und Anleitungen
 
     # 🚀 New Tech
-    "https://www.technologyreview.com/feed/",
-    "https://www.engadget.com/rss.xml",
-    "https://venturebeat.com/feed/",
-    "https://www.makeuseof.com/feed/"
+    "https://www.handelsblatt.com/contentexport/feed/technologie",  # DE: Handelsblatt – Technologie
+    "https://www.technologyreview.com/feed/",  # INT: MIT Technology Review – Neue Technologien
 ]
 
 POSTED_TITLES_FILE = "posted_titles.txt"
@@ -280,6 +270,8 @@ for feed_url in RSS_FEEDS:
                 print(f"📝 Entwurf erstellt: {de_title} ({kategorie_name} / {focus_keyword})")
                 save_posted_title(title)
                 posted_titles.add(title)
+                print("⏳ Warte 60 Sekunden, bevor der nächste Post verarbeitet wird...")
+                time.sleep(60)  # <--- 1 Minute warten
             else:
                 print(f"❌ WP-Fehler: {wp_response.status_code} – {wp_response.text}")
         except Exception as e:
