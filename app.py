@@ -68,17 +68,17 @@ def save_posted_title(title):
     with open(POSTED_TITLES_FILE, "a", encoding="utf-8") as f:
         f.write(title + "\n")
 
-def make_prompt(text):
+def make_prompt(text, original_title):
     return (
-        "Fasse die folgende News für ein technikaffines, meist männliches Publikum im Alter von 24 bis 40 Jahren auf DEUTSCH zusammen, "
-        "egal in welcher Sprache der Originaltext ist. "
-        "Nutze moderne, lockere, aber trotzdem seriöse Sprache ohne Emotes, Smileys oder Jugendslang. "
-        "Verwende maximal 5 kurze, prägnante Sätze. "
-        "Wähle ein aussagekräftiges SEO-Schlagwort ('Focus Keyword'), das am besten zu dieser News passt. "
-        "Verwende dieses Schlagwort mehrfach sinnvoll im Text und schreibe suchmaschinenoptimiert, aber lesbar. "
-        "Am Ende gib exakt eine der folgenden Kategorien für den Beitrag in der Form [Kategorie: <Name>] (ohne weiteren Text) an: "
-        "Gaming, IT, Crafting, New Tech. "
-        "Danach gib in der Form [Schlagwort: <Keyword>] (ohne weiteren Text) das gewählte SEO-Schlagwort an.\n\n"
+        f"Der folgende Beitrag stammt von einer Technik-Newsseite. "
+        f"Übersetze den Titel '{original_title}' ins Deutsche. "
+        f"Fasse anschließend den gesamten Inhalt ausführlich auf DEUTSCH zusammen – in moderner, sachlicher Sprache für ein Publikum zwischen 24 und 40 Jahren. "
+        f"Der Text soll ca. 200–300 Wörter lang sein und informativ, suchmaschinenoptimiert und gut lesbar sein. "
+        f"Nutze keine Emotes, Smileys oder Jugendsprache. Verwende stattdessen lockere, klare Sprache und natürliche Struktur mit Zwischenüberschriften oder Absätzen. "
+        f"Bestimme ein passendes SEO-Schlagwort („Focus Keyword“) und baue es sinnvoll mehrfach in den Text ein. "
+        f"Gib am Ende exakt eine der folgenden Kategorien in der Form [Kategorie: <Name>] an: Gaming, IT, Crafting, New Tech. "
+        f"Gib danach in der Form [Schlagwort: <Keyword>] das SEO-Schlagwort an. "
+        f"Beantworte nur mit dem übersetzten Titel, dem langen Fließtext, [Kategorie: …] und [Schlagwort: …], ohne zusätzlichen Kommentar oder Meta-Infos.\n\n"
         f"{text}"
     )
 
@@ -129,7 +129,7 @@ for feed_url in RSS_FEEDS:
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "Du bist ein moderner, deutschsprachiger Tech-Redakteur."},
-                    {"role": "user", "content": make_prompt(summary)}
+                    {"role": "user", "content": make_prompt(summary, title)}
                 ],
                 temperature=0.8,
                 max_tokens=500,
