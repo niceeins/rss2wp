@@ -75,8 +75,7 @@ def make_prompt(text, original_title):
 def make_image_prompt(de_title, focus_keyword, kategorie_name):
     return (
         f"Erzeuge ein modernes, ansprechendes Titelbild für einen deutschen Blogbeitrag aus dem Bereich '{kategorie_name}' zum Thema '{de_title}'. "
-        f"Das Motiv soll das Schlagwort '{focus_keyword}' visuell aufnehmen. "
-        f"Bitte im Stil eines hochwertigen Magazin-Covers, ohne Text, ohne Menschen, farbenfroh, technologie- oder themenbezogen."
+        f"Das Motiv soll das Schlagwort '{focus_keyword}' visuell aufnehmen."
     )
 
 def filter_brands_with_openai(de_title, focus_keyword, kategorie_name):
