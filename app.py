@@ -31,7 +31,7 @@ KAT_IDS = {
 
 RSS_FEEDS = [
     # 🎮 Gaming
-    "https://www.gamestar.de/rss/news.xml",  # DE: Gamestar – Aktuelle Gaming-News
+    "https://www.gamestar.de/news/rss/news.rss",  # DE: Gamestar – Aktuelle Gaming-News
     "https://kotaku.com/rss",                # INT: Kotaku – Internationale Gaming-News
 
     # 💻 IT
