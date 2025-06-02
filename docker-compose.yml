@@ -1,0 +1,10 @@
+version: "3.8"
+
+services:
+  rss-openai-wp:
+    build: .
+    container_name: rss-openai-wp
+    restart: always
+    env_file: .env
+    command: >
+      sh -c "while true; do python app.py; sleep 3600; done"
