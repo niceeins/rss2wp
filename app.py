@@ -70,17 +70,17 @@ def save_posted_title(title):
 
 def make_prompt(text, original_title):
     return (
-        f"Der folgende Beitrag stammt von einer Technik-Newsseite. "
-        f"Übersetze den Titel '{original_title}' ins Deutsche. "
-        f"Fasse anschließend den gesamten Inhalt ausführlich auf DEUTSCH zusammen – in moderner, sachlicher Sprache für ein Publikum zwischen 24 und 40 Jahren. "
-        f"Der Text soll ca. 200–300 Wörter lang sein und informativ, suchmaschinenoptimiert und gut lesbar sein. "
-        f"Nutze keine Emotes, Smileys oder Jugendsprache. Verwende stattdessen lockere, klare Sprache und natürliche Struktur mit Zwischenüberschriften oder Absätzen. "
-        f"Bestimme ein passendes SEO-Schlagwort („Focus Keyword“) und baue es sinnvoll mehrfach in den Text ein. "
-        f"Gib am Ende exakt eine der folgenden Kategorien in der Form [Kategorie: <Name>] an: Gaming, IT, Crafting, New Tech. "
-        f"Gib danach in der Form [Schlagwort: <Keyword>] das SEO-Schlagwort an. "
-        f"Beantworte nur mit dem übersetzten Titel, dem langen Fließtext, [Kategorie: …] und [Schlagwort: …], ohne zusätzlichen Kommentar oder Meta-Infos.\n\n"
+        f"Du erhältst eine Technik- oder Gaming-News. "
+        f"Übersetze den Titel '{original_title}' INS DEUTSCHE und gib ihn als erste Zeile zurück. "
+        f"Darunter schreibe einen ausführlichen, sachlichen, modernen Fließtext (200–300 Wörter) für technikaffine Leser im Alter von 24–40 Jahren. "
+        f"Der Text soll suchmaschinenoptimiert sein und ein passendes SEO-Schlagwort mehrfach sinnvoll einbauen. "
+        f"Vermeide Emotes, Jugendsprache, Clickbait und unnötige Floskeln. "
+        f"Gib ganz am Ende exakt eine der folgenden Kategorien in der Form [Kategorie: <Name>] an: Gaming, IT, Crafting, New Tech. "
+        f"Und darunter in der Form [Schlagwort: <Keyword>] das gewählte SEO-Fokus-Schlagwort. "
+        f"Gib **keine weiteren Informationen** oder Erklärungen zurück.\n\n"
         f"{text}"
     )
+
 
 def get_or_create_tag_id(tag_name):
     if not tag_name:
