@@ -5,17 +5,21 @@ import os
 import re
 from dotenv import load_dotenv
 import html
+import json
 
 print("🚀 Starte News-Bot ...")
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_ORG = os.getenv("OPENAI_ORG")
 WP_URL = os.getenv("WP_URL")
 WP_USER = os.getenv("WP_USER")
 WP_APP_PASSWORD = os.getenv("WP_APP_PASSWORD")
-OPENAI_ORG = os.getenv("OPENAI_ORG")
 
-client = openai.OpenAI(api_key=OPENAI_API_KEY, organization=OPENAI_ORG)
+client = openai.OpenAI(
+    api_key=OPENAI_API_KEY,
+    organization=OPENAI_ORG
+)
 
 KAT_IDS = {
     "Gaming": 2,
@@ -86,6 +90,35 @@ def make_image_prompt(de_title, focus_keyword, kategorie_name):
         f"Das Motiv soll das Schlagwort '{focus_keyword}' visuell aufnehmen. "
         f"Bitte im Stil eines hochwertigen Magazin-Covers, ohne Text, ohne Menschen, farbenfroh, technologie- oder themenbezogen."
     )
+
+def filter_brands_with_openai(de_title, focus_keyword, kategorie_name):
+    filter_prompt = (
+        f"Im folgenden Text können geschützte Marken- oder Produktnamen vorkommen (z. B. Apple, GoPro, WhatsApp, Marvel, Star Wars etc.). "
+        f"Finde alle solche Begriffe und ersetze sie durch eine neutrale, beschreibende Umschreibung (z. B. 'Actionkamera' statt 'GoPro', 'Instant Messenger' statt 'WhatsApp', 'Comicheld' statt 'Spider-Man'). "
+        f"Formuliere den Titel, das Schlagwort und die Kategorie so um, dass keine bekannten Marken, Produkte, Prominente, Filmtitel, Spiele, Comic-Namen oder sonstigen urheberrechtlich geschützten Begriffe mehr vorkommen. "
+        f"Antworte exakt im JSON-Format wie folgt: "
+        f'{{"title": "...", "keyword": "...", "category": "..."}} '
+        f"Hier sind die Eingabedaten:\n"
+        f'Titel: "{de_title}"\n'
+        f'Schlagwort: "{focus_keyword}"\n'
+        f'Kategorie: "{kategorie_name}"\n'
+    )
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Du bist ein professioneller Texter und Rechtsberater."},
+                {"role": "user", "content": filter_prompt}
+            ],
+            temperature=0.1,
+            max_tokens=250,
+        )
+        result = json.loads(response.choices[0].message.content)
+        return result["title"], result["keyword"], result["category"]
+    except Exception as e:
+        print(f"❌ Fehler beim Marken-Filter (OpenAI): {e}")
+        # Fallback: Gib Originaldaten zurück
+        return de_title, focus_keyword, kategorie_name
 
 def generate_openai_image(prompt):
     try:
@@ -216,8 +249,9 @@ for feed_url in RSS_FEEDS:
         kat_id = KAT_IDS.get(kategorie_name, KAT_IDS["IT"])
         tag_id = get_or_create_tag_id(focus_keyword)
 
-        # ==== NEU: Bildgenerierung & Upload ====
-        image_prompt = make_image_prompt(de_title, focus_keyword, kategorie_name)
+        # ==== Markenfilter für DALL·E ====
+        safe_title, safe_keyword, safe_category = filter_brands_with_openai(de_title, focus_keyword, kategorie_name)
+        image_prompt = make_image_prompt(safe_title, safe_keyword, safe_category)
         image_url = generate_openai_image(image_prompt)
         media_id = upload_image_to_wp(image_url, de_title) if image_url else None
 
