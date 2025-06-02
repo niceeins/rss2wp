@@ -16,7 +16,6 @@ WP_APP_PASSWORD = os.getenv("WP_APP_PASSWORD")
 
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-# Kategorien anpassen!
 KAT_IDS = {
     "Gaming": 2,
     "IT": 3,
@@ -80,11 +79,56 @@ def make_prompt(text, original_title):
         f"{text}"
     )
 
+def make_image_prompt(de_title, focus_keyword, kategorie_name):
+    return (
+        f"Erzeuge ein modernes, ansprechendes Titelbild für einen deutschen Blogbeitrag aus dem Bereich '{kategorie_name}' zum Thema '{de_title}'. "
+        f"Das Motiv soll das Schlagwort '{focus_keyword}' visuell aufnehmen. "
+        f"Bitte im Stil eines hochwertigen Magazin-Covers, ohne Text, ohne Menschen, farbenfroh, technologie- oder themenbezogen."
+    )
+
+def generate_openai_image(prompt):
+    try:
+        dalle_response = client.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            n=1,
+            size="1024x1024",
+            quality="standard"
+        )
+        image_url = dalle_response.data[0].url
+        print("🖼️ Bild von DALL·E erzeugt:", image_url)
+        return image_url
+    except Exception as e:
+        print(f"❌ Fehler bei DALL·E: {e}")
+        return None
+
+def upload_image_to_wp(image_url, wp_title):
+    try:
+        img_data = requests.get(image_url).content
+        media_endpoint = f"{WP_URL}/wp-json/wp/v2/media"
+        headers = {
+            "Content-Disposition": f'attachment; filename="{wp_title[:30].replace(" ", "_")}.png"'
+        }
+        response = requests.post(
+            media_endpoint,
+            headers=headers,
+            data=img_data,
+            auth=(WP_USER, WP_APP_PASSWORD)
+        )
+        if response.status_code in [200, 201]:
+            media_id = response.json()['id']
+            print(f"📸 Bild hochgeladen, ID: {media_id}")
+            return media_id
+        else:
+            print(f"❌ Fehler beim WP-Upload: {response.status_code} – {response.text}")
+            return None
+    except Exception as e:
+        print(f"❌ Fehler beim Bild-Upload: {e}")
+        return None
 
 def get_or_create_tag_id(tag_name):
     if not tag_name:
         return None
-    # Prüfe, ob Tag schon existiert
     response = requests.get(
         f"{WP_URL}/wp-json/wp/v2/tags",
         params={"search": tag_name},
@@ -94,7 +138,6 @@ def get_or_create_tag_id(tag_name):
         data = response.json()
         if data and len(data) > 0:
             return data[0]['id']
-    # Sonst Tag anlegen
     response = requests.post(
         f"{WP_URL}/wp-json/wp/v2/tags",
         json={"name": tag_name},
@@ -104,12 +147,11 @@ def get_or_create_tag_id(tag_name):
         return response.json()['id']
     return None
 
-posted_titles = load_posted_titles()
-
 def to_html_paragraphs(text):
-    # Wandelt Absätze (auch einzelne Zeilen) in <p>…</p> um
     parts = [p.strip() for p in text.split('\n') if p.strip()]
     return ''.join(f'<p>{p}</p>' for p in parts)
+
+posted_titles = load_posted_titles()
 
 for feed_url in RSS_FEEDS:
     print(f"\n🌐 Lese Feed: {feed_url}")
@@ -162,7 +204,6 @@ for feed_url in RSS_FEEDS:
             rewritten = re.sub(r"\[Kategorie:.*?\]", "", rest)
             rewritten = re.sub(r"\[Schlagwort:.*?\]", "", rewritten).strip()
 
-            # Zu HTML-Absätzen
             html_content = to_html_paragraphs(rewritten)
             html_content += f'<p><strong>Quelle:</strong> <a href="{link}" target="_blank" rel="noopener">{title}</a></p>'
 
@@ -174,6 +215,11 @@ for feed_url in RSS_FEEDS:
         kat_id = KAT_IDS.get(kategorie_name, KAT_IDS["IT"])
         tag_id = get_or_create_tag_id(focus_keyword)
 
+        # ==== NEU: Bildgenerierung & Upload ====
+        image_prompt = make_image_prompt(de_title, focus_keyword, kategorie_name)
+        image_url = generate_openai_image(image_prompt)
+        media_id = upload_image_to_wp(image_url, de_title) if image_url else None
+
         post_data = {
             "title": de_title,
             "content": html_content,
@@ -181,6 +227,8 @@ for feed_url in RSS_FEEDS:
             "categories": [kat_id],
             "tags": [tag_id] if tag_id else [],
         }
+        if media_id:
+            post_data["featured_media"] = media_id
 
         try:
             wp_response = requests.post(
@@ -198,4 +246,3 @@ for feed_url in RSS_FEEDS:
             print(f"❌ Fehler beim Senden an WP: {e}")
 
 print("\n🏁 Fertig!")
-
