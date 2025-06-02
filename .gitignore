@@ -1,0 +1,4 @@
+.env
+posted_titles.txt
+__pycache__/
+*.pyc
