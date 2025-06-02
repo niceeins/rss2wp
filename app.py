@@ -49,10 +49,13 @@ posted_titles = load_posted_titles()
 
 def make_prompt(text):
     return (
-        "Fasse folgende News sehr kurz, modern, locker und verständlich zusammen. "
-        "Streiche unnötige Infos und schreibe wie für ein junges Publikum. "
-        "Am Ende gib bitte exakt eine der folgenden Kategorien für diesen Beitrag in der Form [Kategorie: <Name>] (ohne weiteren Text) an: "
-        "Gaming, IT, 3D Druck, Lasergravur.\n\n"
+        "Fasse die folgende News für ein technikaffines Publikum im Alter von 24 bis 40 Jahren zusammen. "
+        "Nutze moderne, lockere, aber trotzdem seriöse Sprache ohne Emotes, Smileys oder Jugend-Slang. "
+        "Verwende maximal 5 kurze, prägnante Sätze. "
+        "Der Text soll informativ und verständlich sein, ohne unnötige Füllwörter oder Wertungen. "
+        "Schreibe bitte sachlich und klar. "
+        "Am Ende gib exakt eine der folgenden Kategorien für den Beitrag in der Form [Kategorie: <Name>] (ohne weiteren Text) an: "
+        "Gaming, IT, Crafting, Tech.\n\n"
         f"{text}"
     )
 
