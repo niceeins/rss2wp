@@ -32,20 +32,19 @@ KAT_IDS = {
 
 RSS_FEEDS = [
     # 🎮 Gaming
-    "https://www.gamestar.de/rss/news.xml",  # DE: Gamestar – Aktuelle Gaming-News
-    "https://kotaku.com/rss",                # INT: Kotaku – Internationale Gaming-News
+    "https://www.gamestar.de/rss/news.xml",
+    "https://kotaku.com/rss",
 
     # 💻 IT
-    "https://www.heise.de/rss/heise-atom.xml",  # DE: Heise Online – IT-Nachrichten
-    "https://feeds.arstechnica.com/arstechnica/index",  # INT: Ars Technica – Technologie-News
+    "https://www.heise.de/rss/heise-atom.xml",
+    "https://feeds.arstechnica.com/arstechnica/index",
 
     # ✂️ Crafting
-    "https://kreativfieber.de/feed",        # DE: Kreativfieber – DIY-Ideen
-    "https://craftgossip.com/feed/",        # INT: CraftGossip – Bastelideen und Anleitungen
+    "https://kreativfieber.de/feed",
+    "https://craftgossip.com/feed/",
 
     # 🚀 New Tech
-    "https://www.handelsblatt.com/contentexport/feed/technologie",  # DE: Handelsblatt – Technologie
-    "https://www.technologyreview.com/feed/",  # INT: MIT Technology Review – Neue Technologien
+    "https://www.handelsblatt.com/contentexport/feed/technologie",
 ]
 
 POSTED_TITLES_FILE = "posted_titles.txt"
@@ -72,39 +71,6 @@ def make_prompt(text, original_title):
         f"Gib NUR den deutschen Titel (ohne Sternchen, Anführungszeichen oder andere Sonderzeichen am Anfang/Ende), darunter den Fließtext, dann Kategorie und Schlagwort zurück.\n\n"
         f"{text}"
     )
-
-def filter_brands_with_openai(de_title, focus_keyword, kategorie_name):
-    filter_prompt = (
-        f"Im folgenden Titel, Keyword und Kategorie könnten geschützte Marken- oder Produktnamen stehen (z. B. GoPro, WhatsApp, Amazon, Apple, PlayStation). "
-        f"Ersetze alle Marken/Produktnamen durch allgemeine Umschreibungen (z. B. 'Actionkamera' statt 'GoPro', 'Online-Händler' statt 'Amazon', 'Spielkonsole' statt 'PlayStation'). "
-        f"Antwortformat (ohne Zusatzinfos!):\n"
-        f"<TITEL>|||<KEYWORD>|||<KATEGORIE>\n"
-        f"Hier sind die Eingabedaten:\n"
-        f"TITEL: {de_title}\n"
-        f"KEYWORD: {focus_keyword}\n"
-        f"KATEGORIE: {kategorie_name}"
-    )
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Du bist ein professioneller, neutraler Texter."},
-                {"role": "user", "content": filter_prompt}
-            ],
-            temperature=0.0,
-            max_tokens=120,
-        )
-        out = response.choices[0].message.content.strip()
-        # Parsen: Split by '|||'
-        parts = [x.strip(" *\"'\n\r\t`") for x in out.split("|||")]
-        if len(parts) == 3:
-            return parts[0], parts[1], parts[2]
-        else:
-            print("⚠️ Unerwarteter Markenfilter-Output:", out)
-            return de_title, focus_keyword, kategorie_name
-    except Exception as e:
-        print(f"❌ Fehler beim Marken-Filter (OpenAI): {e}")
-        return de_title, focus_keyword, kategorie_name
 
 def get_pixabay_image(keyword, kategorie_name):
     query = f"{keyword} {kategorie_name}"
@@ -140,7 +106,6 @@ def upload_image_to_wp(image_url, wp_title, pixabay_link):
             "Content-Disposition": f'attachment; filename="{wp_title[:30].replace(" ", "_")}.jpg"',
             "Content-Type": "image/jpeg"
         }
-        # Viele WP-Setups nehmen Alt-Text als "alt_text" beim Media-Upload an (sonst ignoriert WP das einfach)
         params = {
             "alt_text": f"Bild von Pixabay: {pixabay_link}" if pixabay_link else "Bild von Pixabay"
         }
@@ -248,7 +213,7 @@ for feed_url in RSS_FEEDS:
         kat_id = KAT_IDS.get(kategorie_name, KAT_IDS["IT"])
         tag_id = get_or_create_tag_id(focus_keyword)
 
-        # ==== Pixabay als Bildquelle ====
+        # ==== Pixabay als Bildquelle (ohne Markenfilter) ====
         image_url, pixabay_link = get_pixabay_image(focus_keyword, kategorie_name)
         media_id = upload_image_to_wp(image_url, de_title, pixabay_link) if image_url else None
 
@@ -259,7 +224,7 @@ for feed_url in RSS_FEEDS:
         post_data = {
             "title": de_title,
             "content": html_content,
-            "status": "publish",  # <-- Artikel wird direkt veröffentlicht!
+            "status": "publish",
             "categories": [kat_id],
             "tags": [tag_id] if tag_id else [],
         }
@@ -277,7 +242,7 @@ for feed_url in RSS_FEEDS:
                 save_posted_title(title)
                 posted_titles.add(title)
                 print("⏳ Warte 60 Sekunden, bevor der nächste Post verarbeitet wird...")
-                time.sleep(60)  # <--- 1 Minute warten
+                time.sleep(60)
             else:
                 print(f"❌ WP-Fehler: {wp_response.status_code} – {wp_response.text}")
         except Exception as e:
