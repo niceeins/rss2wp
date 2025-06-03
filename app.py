@@ -124,15 +124,15 @@ def get_pixabay_image(keyword, kategorie_name):
         if data['hits']:
             img = random.choice(data['hits'])
             print(f"📷 Pixabay-Bild gefunden: {img['pageURL']}")
-            return img['largeImageURL']
+            return img['largeImageURL'], img['pageURL']
         else:
             print(f"❌ Kein Pixabay-Bild gefunden für: {query}")
-            return None
+            return None, None
     else:
         print(f"❌ Pixabay-Fehler: {response.status_code} – {response.text}")
-        return None
+        return None, None
 
-def upload_image_to_wp(image_url, wp_title):
+def upload_image_to_wp(image_url, wp_title, pixabay_link):
     try:
         img_data = requests.get(image_url).content
         media_endpoint = f"{WP_URL}/wp-json/wp/v2/media"
@@ -140,9 +140,14 @@ def upload_image_to_wp(image_url, wp_title):
             "Content-Disposition": f'attachment; filename="{wp_title[:30].replace(" ", "_")}.jpg"',
             "Content-Type": "image/jpeg"
         }
+        # Viele WP-Setups nehmen Alt-Text als "alt_text" beim Media-Upload an (sonst ignoriert WP das einfach)
+        params = {
+            "alt_text": f"Bild von Pixabay: {pixabay_link}" if pixabay_link else "Bild von Pixabay"
+        }
         response = requests.post(
             media_endpoint,
             headers=headers,
+            params=params,
             data=img_data,
             auth=(WP_USER, WP_APP_PASSWORD)
         )
@@ -243,11 +248,13 @@ for feed_url in RSS_FEEDS:
         kat_id = KAT_IDS.get(kategorie_name, KAT_IDS["IT"])
         tag_id = get_or_create_tag_id(focus_keyword)
 
-        # ==== Pixabay statt DALL·E ====
-        # Markenfilter kannst du optional für Pixabay ebenfalls einsetzen
-        # safe_title, safe_keyword, safe_category = filter_brands_with_openai(de_title, focus_keyword, kategorie_name)
-        image_url = get_pixabay_image(focus_keyword, kategorie_name)
-        media_id = upload_image_to_wp(image_url, de_title) if image_url else None
+        # ==== Pixabay als Bildquelle ====
+        image_url, pixabay_link = get_pixabay_image(focus_keyword, kategorie_name)
+        media_id = upload_image_to_wp(image_url, de_title, pixabay_link) if image_url else None
+
+        # Quellenlink zu Pixabay im Beitrag hinzufügen
+        if pixabay_link:
+            html_content += f'<p><strong>Bildquelle:</strong> <a href="{pixabay_link}" target="_blank" rel="noopener">Pixabay</a></p>'
 
         post_data = {
             "title": de_title,
