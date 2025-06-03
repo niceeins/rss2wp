@@ -6,6 +6,8 @@ import re
 from dotenv import load_dotenv
 import html
 import time
+import requests
+import random
 
 
 print("🚀 Starte News-Bot ...")
@@ -16,6 +18,7 @@ OPENAI_ORG = os.getenv("OPENAI_ORG")
 WP_URL = os.getenv("WP_URL")
 WP_USER = os.getenv("WP_USER")
 WP_APP_PASSWORD = os.getenv("WP_APP_PASSWORD")
+PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 
 client = openai.OpenAI(
     api_key=OPENAI_API_KEY,
@@ -111,21 +114,7 @@ def filter_brands_with_openai(de_title, focus_keyword, kategorie_name):
         print(f"❌ Fehler beim Marken-Filter (OpenAI): {e}")
         return de_title, focus_keyword, kategorie_name
 
-def generate_openai_image(prompt):
-    try:
-        dalle_response = client.images.generate(
-            model="dall-e-3",
-            prompt=prompt,
-            n=1,
-            size="1024x1024",
-            quality="standard"
-        )
-        image_url = dalle_response.data[0].url
-        print("🖼️ Bild von DALL·E erzeugt:", image_url)
-        return image_url
-    except Exception as e:
-        print(f"❌ Fehler bei DALL·E: {e}")
-        return None
+image_url = get_pixabay_image(focus_keyword, kategorie_name)
 
 def upload_image_to_wp(image_url, wp_title):
     try:
@@ -177,6 +166,34 @@ def get_or_create_tag_id(tag_name):
 def to_html_paragraphs(text):
     parts = [p.strip() for p in text.split('\n') if p.strip()]
     return ''.join(f'<p>{p}</p>' for p in parts)
+
+def get_pixabay_image(keyword, kategorie_name):
+    # Kombiniere das Schlagwort mit der Kategorie für bessere Treffer
+    query = f"{keyword} {kategorie_name}"
+    url = "https://pixabay.com/api/"
+    params = {
+        "key": PIXABAY_API_KEY,
+        "q": query,
+        "image_type": "photo",
+        "orientation": "horizontal",
+        "safesearch": "true",
+        "per_page": 10,
+        "lang": "de"
+    }
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        if data['hits']:
+            # Wähle ein zufälliges Bild aus den Top-Ergebnissen
+            img = random.choice(data['hits'])
+            print(f"📷 Pixabay-Bild gefunden: {img['pageURL']}")
+            return img['largeImageURL']
+        else:
+            print(f"❌ Kein Pixabay-Bild gefunden für: {query}")
+            return None
+    else:
+        print(f"❌ Pixabay-Fehler: {response.status_code} – {response.text}")
+        return None
 
 posted_titles = load_posted_titles()
 
