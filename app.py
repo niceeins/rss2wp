@@ -3,12 +3,10 @@ import openai
 import requests
 import os
 import re
+import time
 from dotenv import load_dotenv
 import html
-import time
-import requests
 import random
-
 
 print("🚀 Starte News-Bot ...")
 load_dotenv()
@@ -34,7 +32,7 @@ KAT_IDS = {
 
 RSS_FEEDS = [
     # 🎮 Gaming
-    "https://www.gamestar.de/news/rss/news.rss",  # DE: Gamestar – Aktuelle Gaming-News
+    "https://www.gamestar.de/rss/news.xml",  # DE: Gamestar – Aktuelle Gaming-News
     "https://kotaku.com/rss",                # INT: Kotaku – Internationale Gaming-News
 
     # 💻 IT
@@ -75,12 +73,6 @@ def make_prompt(text, original_title):
         f"{text}"
     )
 
-def make_image_prompt(de_title, focus_keyword, kategorie_name):
-    return (
-        f"Erzeuge ein modernes, ansprechendes Titelbild für einen deutschen Blogbeitrag aus dem Bereich '{kategorie_name}' zum Thema '{de_title}'. "
-        f"Das Motiv soll das Schlagwort '{focus_keyword}' visuell aufnehmen."
-    )
-
 def filter_brands_with_openai(de_title, focus_keyword, kategorie_name):
     filter_prompt = (
         f"Im folgenden Titel, Keyword und Kategorie könnten geschützte Marken- oder Produktnamen stehen (z. B. GoPro, WhatsApp, Amazon, Apple, PlayStation). "
@@ -94,7 +86,7 @@ def filter_brands_with_openai(de_title, focus_keyword, kategorie_name):
     )
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "Du bist ein professioneller, neutraler Texter."},
                 {"role": "user", "content": filter_prompt}
@@ -114,17 +106,40 @@ def filter_brands_with_openai(de_title, focus_keyword, kategorie_name):
         print(f"❌ Fehler beim Marken-Filter (OpenAI): {e}")
         return de_title, focus_keyword, kategorie_name
 
-image_url = get_pixabay_image(focus_keyword, kategorie_name)
+def get_pixabay_image(keyword, kategorie_name):
+    query = f"{keyword} {kategorie_name}"
+    url = "https://pixabay.com/api/"
+    params = {
+        "key": PIXABAY_API_KEY,
+        "q": query,
+        "image_type": "photo",
+        "orientation": "horizontal",
+        "safesearch": "true",
+        "per_page": 10,
+        "lang": "de"
+    }
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        if data['hits']:
+            img = random.choice(data['hits'])
+            print(f"📷 Pixabay-Bild gefunden: {img['pageURL']}")
+            return img['largeImageURL']
+        else:
+            print(f"❌ Kein Pixabay-Bild gefunden für: {query}")
+            return None
+    else:
+        print(f"❌ Pixabay-Fehler: {response.status_code} – {response.text}")
+        return None
 
 def upload_image_to_wp(image_url, wp_title):
     try:
         img_data = requests.get(image_url).content
         media_endpoint = f"{WP_URL}/wp-json/wp/v2/media"
         headers = {
-                     "Content-Disposition": f'attachment; filename="{wp_title[:30].replace(" ", "_")}.png"',
-                     "Content-Type": "image/png"
-                    }
-
+            "Content-Disposition": f'attachment; filename="{wp_title[:30].replace(" ", "_")}.jpg"',
+            "Content-Type": "image/jpeg"
+        }
         response = requests.post(
             media_endpoint,
             headers=headers,
@@ -167,34 +182,6 @@ def to_html_paragraphs(text):
     parts = [p.strip() for p in text.split('\n') if p.strip()]
     return ''.join(f'<p>{p}</p>' for p in parts)
 
-def get_pixabay_image(keyword, kategorie_name):
-    # Kombiniere das Schlagwort mit der Kategorie für bessere Treffer
-    query = f"{keyword} {kategorie_name}"
-    url = "https://pixabay.com/api/"
-    params = {
-        "key": PIXABAY_API_KEY,
-        "q": query,
-        "image_type": "photo",
-        "orientation": "horizontal",
-        "safesearch": "true",
-        "per_page": 10,
-        "lang": "de"
-    }
-    response = requests.get(url, params=params)
-    if response.status_code == 200:
-        data = response.json()
-        if data['hits']:
-            # Wähle ein zufälliges Bild aus den Top-Ergebnissen
-            img = random.choice(data['hits'])
-            print(f"📷 Pixabay-Bild gefunden: {img['pageURL']}")
-            return img['largeImageURL']
-        else:
-            print(f"❌ Kein Pixabay-Bild gefunden für: {query}")
-            return None
-    else:
-        print(f"❌ Pixabay-Fehler: {response.status_code} – {response.text}")
-        return None
-
 posted_titles = load_posted_titles()
 
 for feed_url in RSS_FEEDS:
@@ -216,7 +203,7 @@ for feed_url in RSS_FEEDS:
 
         try:
             response = client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "Du bist ein moderner, deutschsprachiger Tech-Redakteur."},
                     {"role": "user", "content": make_prompt(summary, title)}
@@ -227,7 +214,6 @@ for feed_url in RSS_FEEDS:
             full_reply = response.choices[0].message.content.strip()
             print("✅ OpenAI-Antwort bekommen.")
 
-            # Parsing: 1. Zeile ist deutscher Titel, Rest ist Fließtext, Kategorie, Schlagwort
             lines = [l for l in full_reply.split("\n") if l.strip() != ""]
             if len(lines) < 4:
                 print("⚠️ GPT-Output zu kurz, wird übersprungen.")
@@ -236,15 +222,12 @@ for feed_url in RSS_FEEDS:
             de_title = lines[0].strip(" *\"'\n\r\t`")
             rest = "\n".join(lines[1:]).strip()
 
-            # Kategorie extrahieren
             kategorie_match = re.search(r"\[Kategorie:\s*(.*?)\]", rest)
             kategorie_name = kategorie_match.group(1).strip() if kategorie_match else "IT"
 
-            # Schlagwort extrahieren
             keyword_match = re.search(r"\[Schlagwort:\s*(.*?)\]", rest)
             focus_keyword = keyword_match.group(1).strip() if keyword_match else ""
 
-            # Fließtext ohne Kategorie/Schlagwort-Tag
             rewritten = re.sub(r"\[Kategorie:.*?\]", "", rest)
             rewritten = re.sub(r"\[Schlagwort:.*?\]", "", rewritten).strip()
             rewritten = rewritten.strip(" *\"'\n\r\t[]")
@@ -260,16 +243,16 @@ for feed_url in RSS_FEEDS:
         kat_id = KAT_IDS.get(kategorie_name, KAT_IDS["IT"])
         tag_id = get_or_create_tag_id(focus_keyword)
 
-        # ==== Markenfilter für DALL·E ====
-        safe_title, safe_keyword, safe_category = filter_brands_with_openai(de_title, focus_keyword, kategorie_name)
-        image_prompt = make_image_prompt(safe_title, safe_keyword, safe_category)
-        image_url = generate_openai_image(image_prompt)
+        # ==== Pixabay statt DALL·E ====
+        # Markenfilter kannst du optional für Pixabay ebenfalls einsetzen
+        # safe_title, safe_keyword, safe_category = filter_brands_with_openai(de_title, focus_keyword, kategorie_name)
+        image_url = get_pixabay_image(focus_keyword, kategorie_name)
         media_id = upload_image_to_wp(image_url, de_title) if image_url else None
 
         post_data = {
             "title": de_title,
             "content": html_content,
-            "status": "publish",
+            "status": "publish",  # <-- Artikel wird direkt veröffentlicht!
             "categories": [kat_id],
             "tags": [tag_id] if tag_id else [],
         }
@@ -283,7 +266,7 @@ for feed_url in RSS_FEEDS:
                 auth=(WP_USER, WP_APP_PASSWORD)
             )
             if wp_response.status_code == 201:
-                print(f"📝 Entwurf erstellt: {de_title} ({kategorie_name} / {focus_keyword})")
+                print(f"📝 Artikel veröffentlicht: {de_title} ({kategorie_name} / {focus_keyword})")
                 save_posted_title(title)
                 posted_titles.add(title)
                 print("⏳ Warte 60 Sekunden, bevor der nächste Post verarbeitet wird...")
