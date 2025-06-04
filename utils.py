@@ -3,10 +3,10 @@ import requests
 import random
 import hashlib
 import logging
+import time
 
-def send_health_report(msg):
-    # Dummy für späteres Monitoring
-    print("[Health] " + msg)
+def send_health_report(success, error, dauer):
+    print(f"[Health] Success: {success} | Error: {error} | Dauer: {dauer}s")
 
 def load_rss_feeds(filename="rss_feeds.txt"):
     feeds = []

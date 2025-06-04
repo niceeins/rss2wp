@@ -6,6 +6,8 @@ import logging
 import time
 import concurrent.futures
 import argparse
+import time
+
 from config import (
     OPENAI_API_KEY, OPENAI_ORG, WP_URL, WP_USER, WP_APP_PASSWORD,
     PIXABAY_API_KEY, UNSPLASH_ACCESS_KEY, KAT_IDS
