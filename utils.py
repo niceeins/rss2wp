@@ -4,6 +4,10 @@ import random
 import hashlib
 import logging
 
+def send_health_report(msg):
+    # Dummy für späteres Monitoring
+    print("[Health] " + msg)
+
 def load_rss_feeds(filename="rss_feeds.txt"):
     feeds = []
     if not os.path.exists(filename):
@@ -253,7 +257,3 @@ def ai_image_relevance_check(image_tags, image_url, keyword, openai_client, kate
         import logging
         logging.warning(f"Fehler bei AI-Bildcheck: {e}")
         return False, None
-
-def send_health_report(msg):
-    # Dummy für späteres Monitoring
-    print("[Health] " + msg)
