@@ -26,8 +26,10 @@ client = openai.OpenAI(
 KAT_IDS = {
     "Gaming": 2,
     "IT": 3,
-    "Neue Technologien": 5,
+    "Mobile": 4,
+    "Creator": 5,
 }
+
 
 def load_rss_feeds(filename="rss_feeds.txt"):
     feeds = []
@@ -65,7 +67,7 @@ def make_prompt(text, original_title):
         f"Darunter schreibe einen ausführlichen, modernen, sachlichen News-Text auf Deutsch (mindestens 300 Wörter), suchmaschinenoptimiert, für technikaffine Männer zwischen 24 und 40 Jahren. "
         f"Baue ein aussagekräftiges SEO-Schlagwort sinnvoll mehrfach in den Text ein. "
         f"Absätze bitte durch Leerzeilen trennen. "
-        f"Am Ende ANTWORTE NUR mit [Kategorie: <Name>] (eine aus: Gaming, IT, Neue Technologien) und darunter [Schlagwort: <Keyword>]. "
+        f"Am Ende ANTWORTE NUR mit [Kategorie: <Name>] (eine aus: Gaming, IT, Mobile, Creator) und darunter [Schlagwort: <Keyword>]. "
         f"KEINE weiteren Erklärungen oder Zusatzinfos! "
         f"Gib NUR den deutschen Titel (ohne Sternchen, Anführungszeichen oder andere Sonderzeichen am Anfang/Ende), darunter den Fließtext, dann Kategorie und Schlagwort zurück.\n\n"
         f"{text}"
@@ -222,7 +224,7 @@ for feed_url in RSS_FEEDS:
         tag_id = get_or_create_tag_id(focus_keyword)
 
         # ==== Pixabay als Bildquelle (ohne Markenfilter) ====
-        image_url, pixabay_link = get_pixabay_image(focus_keyword, kategorie_name)
+        image_url, pixabay_link = get_pixabay_image(focus_keyword, kategorie_name, de_title)
         media_id = upload_image_to_wp(image_url, de_title, pixabay_link) if image_url else None
 
         # Quellenlink zu Pixabay im Beitrag hinzufügen
