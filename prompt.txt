@@ -1,0 +1,10 @@
+Übersetze den folgenden englischen Titel ins Deutsche, aber lasse Eigennamen, Marken, Produktnamen und Eventtitel (wie 'Snowflake Summit') IMMER im Original stehen.
+Gib ausschließlich den so übersetzten deutschen Titel als erste Zeile aus: '{original_title}'.
+Darunter schreibe einen ausführlichen, modernen, sachlichen News-Text auf Deutsch (mindestens 300 Wörter), suchmaschinenoptimiert, für technikaffine Männer zwischen 24 und 40 Jahren.
+Baue ein aussagekräftiges SEO-Schlagwort sinnvoll mehrfach in den Text ein.
+Absätze bitte durch Leerzeilen trennen.
+Am Ende ANTWORTE NUR mit [Kategorie: <Name>] (eine aus: Gaming, IT, Mobile, Creator) und darunter [Schlagwort: <Keyword>].
+KEINE weiteren Erklärungen oder Zusatzinfos!
+Gib NUR den deutschen Titel (ohne Sternchen, Anführungszeichen oder andere Sonderzeichen am Anfang/Ende), darunter den Fließtext, dann Kategorie und Schlagwort zurück.
+
+{text}

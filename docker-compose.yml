@@ -1,12 +1,17 @@
 version: '3.8'
+
 services:
-  rss2wp:
+  newsbot:
     build: .
-    container_name: rss2wp
-    restart: always
-    env_file: .env
+    container_name: newsbot
+    env_file:
+      - .env
     volumes:
       - ./posted_titles.txt:/app/posted_titles.txt
+      - ./posted_hashes.txt:/app/posted_hashes.txt
       - ./rss_feeds.txt:/app/rss_feeds.txt
+      - ./prompt.txt:/app/prompt.txt
+      - ./newsbot.log:/app/newsbot.log
     command: >
-      sh -c "while true; do python app.py; sleep 3600; done"
+      sh -c "while true; do python main.py --parallel --max=2; sleep 3600; done"
+    restart: unless-stopped
