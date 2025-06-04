@@ -51,12 +51,14 @@ def process_entry(entry, feed_url):
             temperature=0.7,
             max_tokens=1500,
         )
-        full_reply = response.choices[0].message.content.strip()
-        lines = [l for l in full_reply.split("\n") if l.strip()]
-        if len(lines) < 4:
-            logging.warning("GPT-Output zu kurz, wird übersprungen.")
-            error_count += 1
-            return
+            full_reply = response.choices[0].message.content.strip()
+            logging.info(f"GPT-Output:\n{full_reply}")  # oder print()
+            lines = [l for l in full_reply.split("\n") if l.strip()]
+            if len(lines) < 4:
+                logging.warning("GPT-Output zu kurz, wird übersprungen.")
+                error_count += 1
+                return
+
         de_title = lines[0].strip(" *\"'\n\r\t`")
         rest = "\n".join(lines[1:]).strip()
         import re
