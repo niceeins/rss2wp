@@ -12,9 +12,11 @@ from config import (
 )
 from utils import (
     load_rss_feeds, load_posted_titles, save_posted_title, save_posted_hash,
-    make_prompt, get_pixabay_image, upload_image_to_wp,
+    make_prompt, upload_image_to_wp,
     get_or_create_tag_id, to_html_paragraphs, hash_content, send_health_report
 )
+
+from image_search import get_pixabay_image
 
 # --- Logging Setup ---
 logging.basicConfig(
