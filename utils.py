@@ -60,3 +60,16 @@ def get_or_create_tag_id(keyword):
 
 def send_health_report(success, error, dauer):
     print(f"[Health] Success: {success} | Error: {error} | Dauer: {dauer}s")
+
+def make_prompt(summary, title):
+    return (
+        f"Übersetze den folgenden englischen Titel ins Deutsche, aber lasse Eigennamen, Marken, Produktnamen und Eventtitel (wie 'Snowflake Summit') IMMER im Original stehen.\n"
+        f"Gib ausschließlich den so übersetzten deutschen Titel als erste Zeile aus: '{title}'.\n"
+        f"Darunter schreibe einen ausführlichen, modernen, sachlichen News-Text auf Deutsch (mindestens 300 Wörter), suchmaschinenoptimiert, für technikaffine Männer zwischen 24 und 40 Jahren.\n"
+        f"Baue ein aussagekräftiges SEO-Schlagwort sinnvoll mehrfach in den Text ein.\n"
+        f"Absätze bitte durch Leerzeilen trennen.\n"
+        f"Am Ende ANTWORTE NUR mit [Kategorie: <Name>] (eine aus: Gaming, IT, Mobile, Creator) und darunter [Schlagwort: <Keyword>].\n"
+        f"KEINE weiteren Erklärungen oder Zusatzinfos!\n"
+        f"Gib NUR den deutschen Titel (ohne Sternchen, Anführungszeichen oder andere Sonderzeichen am Anfang/Ende), darunter den Fließtext, dann Kategorie und Schlagwort zurück.\n\n"
+        f"{summary}"
+    )
