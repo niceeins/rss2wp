@@ -1,31 +1,21 @@
 import feedparser
 import openai
-import requests
 import html
 import logging
 import time
-import concurrent.futures
-import argparse
-import time
-
 from config import (
-    OPENAI_API_KEY, OPENAI_ORG, WP_URL, WP_USER, WP_APP_PASSWORD,
-    PIXABAY_API_KEY, UNSPLASH_ACCESS_KEY, KAT_IDS
+    OPENAI_API_KEY, OPENAI_ORG, WP_URL, WP_USER, WP_APP_PASSWORD, KAT_IDS
 )
 from utils import (
     load_rss_feeds, load_posted_titles, save_posted_title, save_posted_hash,
-    make_prompt, get_pixabay_image, get_unsplash_image, upload_image_to_wp,
-    get_or_create_tag_id, to_html_paragraphs, hash_content, send_health_report
+    to_html_paragraphs, hash_content, upload_image_to_wp, get_or_create_tag_id, send_health_report
 )
+from image_search import get_pixabay_image
 
-# --- Logging Setup ---
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.FileHandler("newsbot.log"),
-        logging.StreamHandler()
-    ]
+    handlers=[logging.FileHandler("newsbot.log"), logging.StreamHandler()]
 )
 
 client = openai.OpenAI(api_key=OPENAI_API_KEY, organization=OPENAI_ORG)
@@ -35,11 +25,14 @@ POSTED_HASHES = load_posted_titles(filename="posted_hashes.txt")
 
 success_count, error_count = 0, 0
 
+def make_prompt(summary, title):
+    return f"Fasse die folgende News auf maximal 8 Sätze knackig zusammen. Gib mir einen passenden deutschen Titel als erste Zeile und identifiziere eine Kategorie (Gaming, IT, Mobile, Creator) sowie ein Schlagwort. Format: [Kategorie: ...], [Schlagwort: ...]. Schreibe spannend, deutsch und mit Mehrwert für Tech-affine Leser:\n\n{title}\n{summary}"
+
 def process_entry(entry, feed_url):
     global success_count, error_count
     try:
         title = html.unescape(entry.title.strip())
-        summary = html.unescape(entry.summary.strip() if 'summary' in entry else entry.description.strip())
+        summary = html.unescape(getattr(entry, "summary", getattr(entry, "description", "")).strip())
         link = entry.link.strip()
         if title in POSTED_TITLES:
             logging.info(f"Schon verarbeitet: {title}")
@@ -88,10 +81,7 @@ def process_entry(entry, feed_url):
         logging.info(f"Kategorie erkannt: {kategorie_name} / Schlagwort: {focus_keyword}")
         kat_id = KAT_IDS.get(kategorie_name, KAT_IDS["IT"])
         tag_id = get_or_create_tag_id(focus_keyword)
-        image_url, pixabay_link = get_pixabay_image(focus_keyword, kategorie_name, de_title, openai_client=client)
-        if not image_url:
-            image_url, unsplash_link = get_unsplash_image(focus_keyword, kategorie_name)
-            pixabay_link = unsplash_link
+        image_url, pixabay_link = get_pixabay_image(focus_keyword, kategorie_name, de_title)
         media_id = upload_image_to_wp(image_url, de_title, pixabay_link) if image_url else None
         if pixabay_link:
             html_content += f'<p><strong>Bildquelle:</strong> <a href="{pixabay_link}" target="_blank" rel="noopener">Bildquelle</a></p>'
@@ -104,7 +94,6 @@ def process_entry(entry, feed_url):
         }
         if media_id:
             post_data["featured_media"] = media_id
-
             time.sleep(10)
         wp_response = requests.post(
             f"{WP_URL}/wp-json/wp/v2/posts",
@@ -117,7 +106,7 @@ def process_entry(entry, feed_url):
             save_posted_title(title)
             save_posted_hash(content_hash)
             success_count += 1
-            time.sleep(60)
+            time.sleep(10)
         else:
             logging.error(f"WP-Fehler: {wp_response.status_code} – {wp_response.text}")
             error_count += 1
@@ -125,32 +114,19 @@ def process_entry(entry, feed_url):
         logging.error(f"Fehler im Artikel-Prozess: {e}")
         error_count += 1
 
-def main(parallel=False, max_entries=2):
+def main():
     logging.info("🚀 Starte News-Bot ...")
     start_time = time.time()
-    if parallel:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            futures = []
-            for feed_url in RSS_FEEDS:
-                feed = feedparser.parse(feed_url)
-                for entry in feed.entries[:max_entries]:
-                    futures.append(executor.submit(process_entry, entry, feed_url))
-            concurrent.futures.wait(futures)
-    else:
-        for feed_url in RSS_FEEDS:
-            logging.info(f"Lese Feed: {feed_url}")
-            feed = feedparser.parse(feed_url)
-            if not feed.entries:
-                logging.warning("Keine Einträge gefunden.")
-                continue
-            for entry in feed.entries[:max_entries]:
-                process_entry(entry, feed_url)
+    for feed_url in RSS_FEEDS:
+        logging.info(f"Lese Feed: {feed_url}")
+        feed = feedparser.parse(feed_url)
+        if not feed.entries:
+            logging.warning("Keine Einträge gefunden.")
+            continue
+        for entry in feed.entries:
+            process_entry(entry, feed_url)
     end_time = time.time()
     send_health_report(success_count, error_count, int(end_time-start_time))
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--parallel', action='store_true', help='Feeds parallel abarbeiten')
-    parser.add_argument('--max', type=int, default=2, help='Wie viele News pro Feed?')
-    args = parser.parse_args()
-    main(parallel=args.parallel, max_entries=args.max)
+    main()
