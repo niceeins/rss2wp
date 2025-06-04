@@ -127,7 +127,6 @@ def get_pixabay_image(keyword, kategorie_name, de_title, openai_client=None):
     logging.warning("Kein (passendes) Pixabay-Bild gefunden.")
     return None, None
 
-
 def get_unsplash_image(keyword, kategorie_name):
     from config import UNSPLASH_ACCESS_KEY
     url = "https://api.unsplash.com/search/photos"
@@ -214,12 +213,7 @@ def to_html_paragraphs(text):
     parts = [p.strip() for p in text.split('\n') if p.strip()]
     return ''.join(f'<p>{p}</p>' for p in parts)
 
-def send_health_report(success_count, error_count, runtime):
-    # Hier könntest du optional Telegram/Mail/Discord/Slack einbauen.
-    # Als Standard nur Log:
-    logging.info(f"FERTIG! {success_count} Artikel erfolgreich, {error_count} Fehler, Laufzeit: {runtime}s")
-
-    def ai_image_relevance_check(image_tags, image_url, keyword, openai_client, kategorie_name):
+def ai_image_relevance_check(image_tags, image_url, keyword, openai_client, kategorie_name):
     """
     Fragt GPT: Passt das Bild zu unserem News-Schlagwort? Wenn nein, schlage ein neues, generischeres Keyword vor.
     Gibt (True/False, neues_keyword) zurück.
