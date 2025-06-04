@@ -102,6 +102,8 @@ def process_entry(entry, feed_url):
         }
         if media_id:
             post_data["featured_media"] = media_id
+
+            time.sleep(10)
         wp_response = requests.post(
             f"{WP_URL}/wp-json/wp/v2/posts",
             json=post_data,

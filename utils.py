@@ -64,6 +64,7 @@ def get_pixabay_image(keyword, kategorie_name, de_title):
     url = "https://pixabay.com/api/"
     for query in queries:
         clean_query = query.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+        clean_query = clean_query[:100]
         params = {
             "key": PIXABAY_API_KEY,
             "q": clean_query,
@@ -125,6 +126,7 @@ def upload_image_to_wp(image_url, wp_title, source_link):
         params = {
             "alt_text": f"Bildquelle: {source_link}" if source_link else "Bild von Pixabay"
         }
+        time.sleep(10)
         response = requests.post(
             media_endpoint,
             headers=headers,
