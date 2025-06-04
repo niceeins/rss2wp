@@ -30,22 +30,22 @@ KAT_IDS = {
     "New Tech": 5,
 }
 
-RSS_FEEDS = [
-    # 🎮 Gaming
-    "https://www.gamestar.de/rss/news.xml",
-    "https://kotaku.com/rss",
+def load_rss_feeds(filename="rss_feeds.txt"):
+    feeds = []
+    if not os.path.exists(filename):
+        print(f"⚠️ RSS-Feed-Datei '{filename}' nicht gefunden!")
+        return feeds
+    with open(filename, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            feeds.append(line)
+    print(f"🔗 {len(feeds)} RSS-Feeds geladen.")
+    return feeds
 
-    # 💻 IT
-    "https://www.heise.de/rss/heise-atom.xml",
-    "https://feeds.arstechnica.com/arstechnica/index",
+RSS_FEEDS = load_rss_feeds()
 
-    # ✂️ Crafting
-    "https://kreativfieber.de/feed",
-    "https://craftgossip.com/feed/",
-
-    # 🚀 New Tech
-    "https://www.handelsblatt.com/contentexport/feed/technologie",
-]
 
 POSTED_TITLES_FILE = "posted_titles.txt"
 
@@ -72,31 +72,40 @@ def make_prompt(text, original_title):
         f"{text}"
     )
 
-def get_pixabay_image(keyword, kategorie_name):
-    query = f"{keyword} {kategorie_name}"
+def get_pixabay_image(keyword, kategorie_name, de_title):
+    # Versuche zuerst die präziseste Suche, dann immer generischer.
+    queries = [
+        de_title,                                    # ganzer deutscher Titel
+        f"{keyword} {kategorie_name}",               # SEO-Schlagwort + Kategorie
+        keyword,                                     # nur SEO-Schlagwort
+        kategorie_name,                              # nur Kategorie
+    ]
     url = "https://pixabay.com/api/"
-    params = {
-        "key": PIXABAY_API_KEY,
-        "q": query,
-        "image_type": "photo",
-        "orientation": "horizontal",
-        "safesearch": "true",
-        "per_page": 10,
-        "lang": "de"
-    }
-    response = requests.get(url, params=params)
-    if response.status_code == 200:
-        data = response.json()
-        if data['hits']:
-            img = random.choice(data['hits'])
-            print(f"📷 Pixabay-Bild gefunden: {img['pageURL']}")
-            return img['largeImageURL'], img['pageURL']
+    for query in queries:
+        clean_query = query.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+        params = {
+            "key": PIXABAY_API_KEY,
+            "q": clean_query,
+            "image_type": "photo",
+            "orientation": "horizontal",
+            "safesearch": "true",
+            "per_page": 10,
+            "lang": "de"
+        }
+        response = requests.get(url, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            if data['hits']:
+                img = random.choice(data['hits'])
+                print(f"📷 Pixabay-Bild gefunden für Query '{clean_query}': {img['pageURL']}")
+                return img['largeImageURL'], img['pageURL']
+            else:
+                print(f"⚠️ Kein Treffer bei Query: {clean_query}")
         else:
-            print(f"❌ Kein Pixabay-Bild gefunden für: {query}")
-            return None, None
-    else:
-        print(f"❌ Pixabay-Fehler: {response.status_code} – {response.text}")
-        return None, None
+            print(f"❌ Pixabay-Fehler: {response.status_code} – {response.text}")
+    print("❌ Kein Pixabay-Bild gefunden für alle Suchvarianten.")
+    return None, None
+
 
 def upload_image_to_wp(image_url, wp_title, pixabay_link):
     try:
