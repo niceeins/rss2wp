@@ -193,6 +193,7 @@ for feed_url in RSS_FEEDS:
             )
             full_reply = response.choices[0].message.content.strip()
             print("✅ OpenAI-Antwort bekommen.")
+            print(f"GPT-Output:\n{full_reply}")
 
             lines = [l for l in full_reply.split("\n") if l.strip() != ""]
             if len(lines) < 4:
