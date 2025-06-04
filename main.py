@@ -117,7 +117,7 @@ def process_entry(entry, feed_url):
             save_posted_title(title)
             save_posted_hash(content_hash)
             success_count += 1
-            time.sleep(10)
+            time.sleep(60)
         else:
             logging.error(f"WP-Fehler: {wp_response.status_code} – {wp_response.text}")
             error_count += 1
