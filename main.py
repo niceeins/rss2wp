@@ -94,7 +94,7 @@ def process_entry(entry, feed_url):
         image_url = None
         pixabay_link = None
         for i in range(max_image_tries):
-            image_url, pixabay_link = get_pixabay_image(focus_keyword, kategorie_name, de_title, openai_client=client)
+            image_url, pixabay_link = get_pixabay_image(focus_keyword, kategorie_name, de_title)
             if image_url:
                 logging.info(f"Pixabay-Bild gefunden (Versuch {i+1}): {image_url}")
                 break
