@@ -3,6 +3,8 @@ import os
 import requests
 import logging
 
+from config import WP_URL, WP_USER, WP_APP_PASSWORD
+
 def load_rss_feeds(filename="rss_feeds.txt"):
     with open(filename, "r", encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip()]
