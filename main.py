@@ -86,7 +86,7 @@ def process_entry(entry, feed_url):
         logging.info(f"Kategorie erkannt: {kategorie_name} / Schlagwort: {focus_keyword}")
         kat_id = KAT_IDS.get(kategorie_name, KAT_IDS["IT"])
         tag_id = get_or_create_tag_id(focus_keyword)
-        image_url, pixabay_link = get_pixabay_image(focus_keyword, kategorie_name, de_title)
+        image_url, pixabay_link = get_pixabay_image(focus_keyword, kategorie_name, de_title, openai_client=client)
         if not image_url:
             image_url, unsplash_link = get_unsplash_image(focus_keyword, kategorie_name)
             pixabay_link = unsplash_link

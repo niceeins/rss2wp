@@ -53,43 +53,80 @@ def make_prompt(text, original_title, prompt_file="prompt.txt"):
         f"{text}"
     )
 
-def get_pixabay_image(keyword, kategorie_name, de_title):
+def get_pixabay_image(keyword, kategorie_name, de_title, openai_client=None):
     from config import PIXABAY_API_KEY
-    queries = [
-        de_title,
-        f"{keyword} {kategorie_name}",
-        keyword,
-        kategorie_name,
-    ]
+    import requests
+    import logging
+    import re
+
+    def clean_kw(kw):
+        # Entfernt Sonderzeichen und überflüssige Leerzeichen
+        return re.sub(r'[^a-zA-Z0-9äöüÄÖÜß\- ]', '', kw).strip()
+
     url = "https://pixabay.com/api/"
+    queries = []
+    if keyword and len(keyword) > 2:
+        queries.append(clean_kw(keyword))
+    if kategorie_name:
+        queries.append(clean_kw(kategorie_name))
+
     for query in queries:
-        clean_query = query.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
-        clean_query = clean_query[:100]
+        if not query:
+            continue
+        q = query.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+        q = q[:100]
         params = {
             "key": PIXABAY_API_KEY,
-            "q": clean_query,
+            "q": q,
             "image_type": "photo",
             "orientation": "horizontal",
             "safesearch": "true",
-            "per_page": 10,
+            "per_page": 5,
             "lang": "de"
         }
         try:
             response = requests.get(url, params=params, timeout=8)
             if response.status_code == 200:
                 data = response.json()
-                if data['hits']:
-                    img = random.choice(data['hits'])
-                    logging.info(f"Pixabay-Bild gefunden für Query '{clean_query}': {img['pageURL']}")
-                    return img['largeImageURL'], img['pageURL']
-                else:
-                    logging.info(f"Kein Treffer bei Query: {clean_query}")
+                hits = data.get('hits', [])
+                if not hits:
+                    continue
+
+                # KI-Check für jeden Treffer
+                for img in hits:
+                    tags = img.get('tags', '')
+                    image_url = img.get('largeImageURL', '')
+                    if openai_client:
+                        is_relevant, new_keyword = ai_image_relevance_check(
+                            tags, image_url, keyword, openai_client, kategorie_name
+                        )
+                        if is_relevant:
+                            logging.info(f"Pixabay-Bild durch KI bestätigt für Query '{q}': {img['pageURL']}")
+                            return image_url, img['pageURL']
+                        elif new_keyword and new_keyword.lower() != keyword.lower():
+                            # Neuer Versuch mit KI-Schlagwort!
+                            logging.info(f"KI schlägt neues Schlagwort vor: {new_keyword}")
+                            nq = new_keyword.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+                            nq = nq[:100]
+                            alt_params = params.copy()
+                            alt_params["q"] = nq
+                            alt_resp = requests.get(url, params=alt_params, timeout=8)
+                            if alt_resp.status_code == 200:
+                                alt_data = alt_resp.json()
+                                if alt_data['hits']:
+                                    alt_img = alt_data['hits'][0]
+                                    logging.info(f"Pixabay-Bild für Alternativ-Query '{nq}': {alt_img['pageURL']}")
+                                    return alt_img['largeImageURL'], alt_img['pageURL']
+                    else:
+                        # Kein OpenAI: Nimm das erste Bild
+                        return image_url, img['pageURL']
             else:
                 logging.warning(f"Pixabay-Fehler: {response.status_code} – {response.text}")
         except Exception as e:
             logging.warning(f"Pixabay-Fehler: {e}")
-    logging.warning("Kein Pixabay-Bild gefunden für alle Suchvarianten.")
+    logging.warning("Kein (passendes) Pixabay-Bild gefunden.")
     return None, None
+
 
 def get_unsplash_image(keyword, kategorie_name):
     from config import UNSPLASH_ACCESS_KEY
@@ -181,3 +218,44 @@ def send_health_report(success_count, error_count, runtime):
     # Hier könntest du optional Telegram/Mail/Discord/Slack einbauen.
     # Als Standard nur Log:
     logging.info(f"FERTIG! {success_count} Artikel erfolgreich, {error_count} Fehler, Laufzeit: {runtime}s")
+
+    def ai_image_relevance_check(image_tags, image_url, keyword, openai_client, kategorie_name):
+    """
+    Fragt GPT: Passt das Bild zu unserem News-Schlagwort? Wenn nein, schlage ein neues, generischeres Keyword vor.
+    Gibt (True/False, neues_keyword) zurück.
+    """
+    system_msg = (
+        "Du bist ein KI-Bild-Checker. "
+        "Analysiere, ob ein Pixabay-Bild (mit Tags, URL) zu einem bestimmten Schlagwort passt. "
+        "Wenn das Bild passt, antworte nur mit 'OK'. "
+        "Wenn das Bild nicht passt, antworte mit 'Alternative: <neues schlagwort>' "
+        f"(ein relevantes, allgemeineres deutsches Keyword aus dem Bereich der Kategorie: {kategorie_name}). "
+        "Sei kurz, keine Erklärungen!"
+    )
+    prompt = (
+        f"Schlagwort: {keyword}\n"
+        f"Bild-Tags: {image_tags}\n"
+        f"Bild-URL: {image_url}\n"
+    )
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.2,
+            max_tokens=20,
+        )
+        reply = response.choices[0].message.content.strip().lower()
+        if reply.startswith("ok"):
+            return True, keyword
+        elif "alternative:" in reply:
+            alt_kw = reply.split("alternative:")[1].strip()
+            return False, alt_kw
+        else:
+            return False, None
+    except Exception as e:
+        import logging
+        logging.warning(f"Fehler bei AI-Bildcheck: {e}")
+        return False, None
