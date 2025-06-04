@@ -253,3 +253,7 @@ def ai_image_relevance_check(image_tags, image_url, keyword, openai_client, kate
         import logging
         logging.warning(f"Fehler bei AI-Bildcheck: {e}")
         return False, None
+
+def send_health_report(msg):
+    # Dummy für späteres Monitoring
+    print("[Health] " + msg)
